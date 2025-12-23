@@ -1,16 +1,20 @@
 from fastapi import FastAPI, UploadFile, Form
 from fastapi.responses import HTMLResponse
-import requests
+import httpx  # async HTTP client for FastAPI
 
 app = FastAPI()
 
-# Replace these with your TMS credentials
+# === Replace with your TMS credentials ===
 TMS_UPLOAD_URL = "https://fhbio.stage.tmsonline.com/tms/tmsconnect/fileexchange"
 TMS_USER = "jgoldstein@pronktech.com"
 TMS_PASS = "Welcome1!"
 
+
 @app.get("/upload", response_class=HTMLResponse)
-def upload_form(workorder: str):
+async def upload_form(workorder: str):
+    """
+    Display HTML form to pick a PDF file for the given work order.
+    """
     return f"""
     <h3>Upload PDF for Work Order {workorder}</h3>
     <form action="/uploadfile" method="post" enctype="multipart/form-data">
@@ -20,14 +24,32 @@ def upload_form(workorder: str):
     </form>
     """
 
+
 @app.post("/uploadfile")
-def upload_file(workorder: str = Form(...), pdffile: UploadFile = None):
+async def upload_file(workorder: str = Form(...), pdffile: UploadFile = None):
+    """
+    Receives PDF file and posts it to TMS Procedure Readings.
+    """
     if not pdffile:
         return {"status": "No file selected"}
 
-    files = {"File": (pdffile.filename, pdffile.file, "application/pdf")}
+    # Read the file bytes
+    file_content = await pdffile.read()
+    files = {"File": (pdffile.filename, file_content, "application/pdf")}
     data = {"WorkOrderID": workorder, "DocumentType": "ProcedureReading"}
-    response = requests.post(TMS_UPLOAD_URL, files=files, data=data, auth=(TMS_USER, TMS_PASS))
+
+    # Async POST to TMS
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                TMS_UPLOAD_URL,
+                files=files,
+                data=data,
+                auth=(TMS_USER, TMS_PASS),
+                timeout=30
+            )
+        except Exception as e:
+            return {"status": "Failed", "detail": str(e)}
 
     return {
         "status": "Uploaded" if response.status_code == 200 else "Failed",
