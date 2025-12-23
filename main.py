@@ -4,8 +4,9 @@ import requests
 
 app = FastAPI()
 
+# Replace these with your TMS credentials
 TMS_UPLOAD_URL = "https://fhbio.stage.tmsonline.com/tms/tmsconnect/fileexchange"
-TMS_USER = "jgoldstein@pronktech.com"   # Replace with TMS credentials
+TMS_USER = "jgoldstein@pronktech.com"
 TMS_PASS = "Welcome1!"
 
 @app.get("/upload", response_class=HTMLResponse)
